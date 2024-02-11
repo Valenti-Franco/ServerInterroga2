@@ -1,6 +1,8 @@
 // Import packages
 const express = require("express");
 const { createServer } = require('http');
+const axios = require('axios');
+
 const { Server } = require('socket.io');
 require('dotenv').config();
 
@@ -54,32 +56,24 @@ io.on('connection', (socket) => {
 
                 lobbies.push(lobby);
 
-                const questsPromise = fetch('https://opentdb.com/api.php?amount=11&type=multiple')
-                    .then(response => response.json())
-                    .then(data => {
-                        return data;
+                axios.get('https://opentdb.com/api.php?amount=11&type=multiple')
+                    .then(response => {
+                        quests = response.data;
+                        io.emit('find', { lobbies: lobbies, quests: quests, final: false });
                     })
                     .catch(error => {
                         console.error('Error fetching questions:', error);
                     });
-
-                async function fetchQuestions() {
-                    quests = await questsPromise;
-
-                    // se envia el id de la sala a los jugadores
-                    io.emit('find', { lobbies: lobbies, quests: quests, final: false });
-                    // se reinicia el arreglo de jugadores
-
-
-                }
-
-                fetchQuestions();
             }
         }
     });
     // Cuando se termina cada round se envia el resultado de la ronda
     socket.on('round', (e) => {
-        let index = lobbies[0]?.players.findIndex(player => player.name === e.name);
+        let index = -1;
+        if (lobbies[0] && lobbies[0].players) {
+            index = lobbies[0].players.findIndex(player => player.name === e.name);
+        }
+        // let index = lobbies[0]?.players.findIndex(player => player.name === e.name);
         // se suma el resultado al score del jugador
         if (index !== -1) {
 
